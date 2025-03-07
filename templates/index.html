@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Password File</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            margin: auto;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+        .status-safe {
+            color: green;
+            font-weight: bold;
+        }
+        .status-pwned {
+            color: red;
+            font-weight: bold;
+        }
+        pre {
+            background: #eee;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload File Password</h1>
+        <h2>Anda memasuki master1</h2>
+        <form id="uploadForm">
+            <label for="fileUpload">Pilih File Password (.txt):</label>
+            <input type="file" id="fileUpload" accept=".txt" required>
+            <button type="submit">Upload dan Periksa</button>
+        </form>
+
+        <div id="result" style="display:none;">
+            <h2>Hasil Pemeriksaan:</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Password</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="output"></tbody>
+            </table>
+            <h2>Log Worker:</h2>
+            <pre id="workerLogs"></pre>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('fileUpload');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Silakan pilih file terlebih dahulu!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    document.getElementById('result').style.display = 'block';
+
+                    // Tampilkan hasil dalam tabel
+                    const outputTable = document.getElementById('output');
+                    outputTable.innerHTML = result.results.map(item => `
+                        <tr>
+                            <td>${item.password}</td>
+                            <td class="${item.pwned ? 'status-pwned' : 'status-safe'}">
+                                ${item.pwned ? '⚠ Bocor' : '✅ Aman'}
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    // Tampilkan log worker dalam format yang lebih rapi
+                    const logs = result.logs.map(log => `
+                        Worker: ${log.worker}
+                        -------------------------
+                        Passwords Checked: ${log.passwords_checked}
+                        Results:
+${log.results.map(item => `  - ${item.password}: ${item.pwned ? 'Bocor' : 'Aman'}`).join('\n')}
+                    `).join('\n\n');
+                    document.getElementById('workerLogs').textContent = logs;
+                } else {
+                    alert('Terjadi kesalahan saat memproses file.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan saat mengunggah file.');
+            }
+        });
+    </script>
+</body>
+</html>
